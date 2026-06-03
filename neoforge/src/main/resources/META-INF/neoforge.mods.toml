@@ -11,7 +11,7 @@ authors = "Sh4d0wJ0J0, PROFAKE"
 description = '''
 Footblock Ultimate is the sequel of my Footblock mod, featuring improved ball's physics, new systems, and much more!
 '''
-#logoFile = ""
+logoFile = "assets/footblockultimate/icon.png"
 
 [[dependencies.footblockultimate]]
 modId = "neoforge"
