@@ -27,10 +27,4 @@
 
 ---
 
-## 🛠️ Mod Installation & Info
-
-*   **Supported Game Version**: Minecraft `1.21.1`
-*   **Supported Mod Loaders**: Fabric & NeoForge (powered by Architectury)
-*   **Dependencies**: Architectury API
-
 *Create your own football pitch, challenge your friends, and dominate the blocky field in Footblock Ultimate!*
