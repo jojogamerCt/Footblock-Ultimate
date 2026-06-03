@@ -1,0 +1,20 @@
+{
+  "football_kick": {
+    "category": "player",
+    "subtitle": "subtitles.footblockultimate.football_kick",
+    "sounds": [
+      {
+        "name": "footblockultimate:football/kick_1",
+        "stream": false
+      },
+      {
+        "name": "footblockultimate:football/kick_2",
+        "stream": false
+      },
+      {
+        "name": "footblockultimate:football/kick_3",
+        "stream": false
+      }
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 package net.footblock.footblockultimate.entity;
 
 import net.footblock.footblockultimate.registry.ModItems;
+import net.footblock.footblockultimate.registry.ModSounds;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -265,7 +266,7 @@ public class FootballEntity extends Entity {
 
         float pitch = 1.0f + (1.0f - power) * 0.5f;
         this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
-                SoundEvents.SLIME_BLOCK_FALL, SoundSource.PLAYERS, 1.0f, pitch);
+                ModSounds.FOOTBALL_KICK.get(), SoundSource.PLAYERS, 1.0f, pitch);
     }
 
     @Override

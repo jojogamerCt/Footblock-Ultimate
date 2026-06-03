@@ -4,6 +4,7 @@ import dev.architectury.networking.NetworkManager;
 import net.footblock.footblockultimate.entity.FootballEntity;
 import net.footblock.footblockultimate.registry.ModEntities;
 import net.footblock.footblockultimate.registry.ModItems;
+import net.footblock.footblockultimate.registry.ModSounds;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.AABB;
@@ -17,6 +18,7 @@ public final class FootblockUltimate {
     public static void init() {
         ModItems.init();
         ModEntities.init();
+        ModSounds.init();
 
         // Register server-side receiver for client kicks
         NetworkManager.registerReceiver(NetworkManager.Side.C2S, KICK_PACKET_ID, (buf, context) -> {
