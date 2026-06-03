@@ -203,13 +203,21 @@ def main():
     svg_content = generate_svg()
     
     # Define directories
-    target_res_dir = os.path.join("common", "src", "main", "resources", "assets", MOD_ID)
+    target_res_dir = os.path.join("common", "src", "main", "resources")
     os.makedirs(target_res_dir, exist_ok=True)
     
     svg_path = os.path.abspath(os.path.join(target_res_dir, "icon.svg"))
     png_path = os.path.abspath(os.path.join(target_res_dir, "icon.png"))
     cf_png_path = os.path.abspath("curseforge_icon.png")
     
+    # Clean up legacy paths
+    legacy_svg = os.path.abspath(os.path.join("common", "src", "main", "resources", "assets", MOD_ID, "icon.svg"))
+    legacy_png = os.path.abspath(os.path.join("common", "src", "main", "resources", "assets", MOD_ID, "icon.png"))
+    if os.path.exists(legacy_svg):
+        os.remove(legacy_svg)
+    if os.path.exists(legacy_png):
+        os.remove(legacy_png)
+        
     # Save SVG to mod resources
     with open(svg_path, "w", encoding="utf-8") as f:
         f.write(svg_content)

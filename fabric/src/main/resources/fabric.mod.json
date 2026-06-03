@@ -8,7 +8,7 @@
   "contact": {
     "homepage": ""  },
   "license": "All-Rights-Reserved",
-  "icon": "assets/footblockultimate/icon.png",
+  "icon": "icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [
