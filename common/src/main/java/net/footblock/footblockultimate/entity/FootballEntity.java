@@ -1,5 +1,6 @@
 package net.footblock.footblockultimate.entity;
 
+import net.footblock.footblockultimate.FootblockUltimate;
 import net.footblock.footblockultimate.registry.ModItems;
 import net.footblock.footblockultimate.registry.ModSounds;
 import net.minecraft.nbt.CompoundTag;
@@ -287,6 +288,9 @@ public class FootballEntity extends Entity {
         float pitch = 1.0f + (1.0f - power) * 0.5f;
         this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
                 ModSounds.FOOTBALL_KICK.get(), SoundSource.PLAYERS, 1.0f, pitch);
+
+        boolean isRightLeg = determineKickLeg(player);
+        broadcastKickAnimation(player, power, isRightLeg);
     }
 
     @Override
@@ -346,6 +350,9 @@ public class FootballEntity extends Entity {
         float pitch = 1.2f + (1.0f - power) * 0.4f;
         this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
                 ModSounds.FOOTBALL_KICK.get(), SoundSource.PLAYERS, 0.8f, pitch);
+
+        boolean isRightLeg = determineKickLeg(player);
+        broadcastKickAnimation(player, power, isRightLeg);
     }
 
     private Player findPassTarget(Player kicker) {
@@ -377,5 +384,45 @@ public class FootballEntity extends Entity {
             }
         }
         return bestTarget;
+    }
+
+    private boolean determineKickLeg(Player player) {
+        float bodyYawRad = player.yBodyRot * ((float) Math.PI / 180.0f);
+        double bodyX = -Math.sin(bodyYawRad);
+        double bodyZ = Math.cos(bodyYawRad);
+        Vec3 look = player.getLookAngle();
+        double cross = bodyX * look.z - bodyZ * look.x;
+
+        if (cross < -0.35) {
+            return false; // Looking to the right -> use Left Leg
+        } else if (cross > 0.35) {
+            return true;  // Looking to the left -> use Right Leg
+        } else {
+            // Walking cycle swing
+            float swing = player.walkAnimation.position();
+            return Math.sin(swing) <= 0.0;
+        }
+    }
+
+    private void broadcastKickAnimation(Player player, float power, boolean isRightLeg) {
+        if (player.level().isClientSide()) {
+            return;
+        }
+
+        net.minecraft.network.RegistryFriendlyByteBuf buf = new net.minecraft.network.RegistryFriendlyByteBuf(
+                io.netty.buffer.Unpooled.buffer(),
+                player.level().registryAccess()
+        );
+        buf.writeUUID(player.getUUID());
+        buf.writeBoolean(isRightLeg);
+        buf.writeFloat(power);
+
+        if (player.level().getServer() != null) {
+            for (net.minecraft.server.level.ServerPlayer serverPlayer : player.level().getServer().getPlayerList().getPlayers()) {
+                if (serverPlayer.level() == player.level()) {
+                    dev.architectury.networking.NetworkManager.sendToPlayer(serverPlayer, FootblockUltimate.KICK_ANIM_S2C_PACKET_ID, buf);
+                }
+            }
+        }
     }
 }

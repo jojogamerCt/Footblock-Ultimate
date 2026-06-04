@@ -19,6 +19,7 @@ import net.minecraft.world.phys.Vec3;
 import io.netty.buffer.Unpooled;
 
 import java.util.List;
+import java.util.UUID;
 
 public final class FootblockUltimateClient {
     public static float shootCharge = 0.0f;
@@ -74,6 +75,16 @@ public final class FootblockUltimateClient {
                 renderPowerBar(graphics);
             }
         });
+
+        // Register S2C receiver for other players' kick animations
+        NetworkManager.registerReceiver(NetworkManager.Side.S2C, FootblockUltimate.KICK_ANIM_S2C_PACKET_ID, (buf, context) -> {
+            UUID playerUuid = buf.readUUID();
+            boolean isRightLeg = buf.readBoolean();
+            float power = buf.readFloat();
+            context.queue(() -> {
+                PlayerAnimationTracker.startKick(playerUuid, isRightLeg, power);
+            });
+        });
     }
 
     private static FootballEntity getDribbledBall(Player player) {
@@ -97,6 +108,25 @@ public final class FootblockUltimateClient {
 
             Player player = Minecraft.getInstance().player;
             if (player != null && Minecraft.getInstance().level != null) {
+                // Determine leg locally for client prediction
+                boolean isRightLeg;
+                float bodyYawRad = player.yBodyRot * ((float) Math.PI / 180.0f);
+                double bodyX = -Math.sin(bodyYawRad);
+                double bodyZ = Math.cos(bodyYawRad);
+                Vec3 look = player.getLookAngle();
+                double cross = bodyX * look.z - bodyZ * look.x;
+
+                if (cross < -0.35) {
+                    isRightLeg = false; // Looking to the right -> use Left Leg
+                } else if (cross > 0.35) {
+                    isRightLeg = true;  // Looking to the left -> use Right Leg
+                } else {
+                    float swing = player.walkAnimation.position();
+                    isRightLeg = Math.sin(swing) <= 0.0;
+                }
+
+                PlayerAnimationTracker.startKick(player.getUUID(), isRightLeg, power);
+
                 Vec3 lookVec = player.getLookAngle();
                 double minForce = 0.15;
                 double maxHorizontalForce = player.isSprinting() ? 1.5 : 0.9;
@@ -135,6 +165,25 @@ public final class FootblockUltimateClient {
 
             Player player = Minecraft.getInstance().player;
             if (player != null && Minecraft.getInstance().level != null) {
+                // Determine leg locally for client prediction
+                boolean isRightLeg;
+                float bodyYawRad = player.yBodyRot * ((float) Math.PI / 180.0f);
+                double bodyX = -Math.sin(bodyYawRad);
+                double bodyZ = Math.cos(bodyYawRad);
+                Vec3 look = player.getLookAngle();
+                double cross = bodyX * look.z - bodyZ * look.x;
+
+                if (cross < -0.35) {
+                    isRightLeg = false; // Looking to the right -> use Left Leg
+                } else if (cross > 0.35) {
+                    isRightLeg = true;  // Looking to the left -> use Right Leg
+                } else {
+                    float swing = player.walkAnimation.position();
+                    isRightLeg = Math.sin(swing) <= 0.0;
+                }
+
+                PlayerAnimationTracker.startKick(player.getUUID(), isRightLeg, power);
+
                 // Find target player on client too for prediction!
                 Player target = null;
                 double bestScore = -1.0;

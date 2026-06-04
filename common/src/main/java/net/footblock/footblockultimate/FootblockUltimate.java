@@ -15,6 +15,7 @@ public final class FootblockUltimate {
     public static final String MOD_ID = "footblockultimate";
     public static final ResourceLocation KICK_PACKET_ID = ResourceLocation.fromNamespaceAndPath(MOD_ID, "kick_packet");
     public static final ResourceLocation PASS_PACKET_ID = ResourceLocation.fromNamespaceAndPath(MOD_ID, "pass_packet");
+    public static final ResourceLocation KICK_ANIM_S2C_PACKET_ID = ResourceLocation.fromNamespaceAndPath(MOD_ID, "kick_anim_s2c");
 
     public static void init() {
         ModItems.init();
