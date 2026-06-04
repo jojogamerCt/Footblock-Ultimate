@@ -5,22 +5,9 @@ All notable changes to the **Footblock Ultimate** mod will be documented in this
 ---
 
 
-## [0.0.12-ALPHA] - 2026-06-04
-
-This release introduces programmatic, dynamic-based player limb animations when shooting or passing.
-
-### 🚀 Added Features
-
-*   **Dynamic Kicking Animations**: Adds custom limb animations for player models during kicks/passes:
-    *   **Walking Cycle Alignment**: When kicking straight forward, the mod detects your walking cycle stride (`limbSwing`) and swings the leg that is currently positioned backward.
-    *   **Sideways Kicking Alignment**: If looking/kicking to the right, the character will kick with the left leg (crossing over), and vice-versa, avoiding physically impossible poses.
-    *   **Balance Arm Swings**: Swings the opposite arm forward and the same-side arm backward to mimic realistic athletic balance during a kick.
-    *   **Multiplayer Animation Sync**: Uses server-to-client S2C packet broadcasting (`KICK_ANIM_S2C_PACKET_ID`) so all nearby players can see other player models animate when they kick or pass.
-    *   **Low-Latency Client Prediction**: Runs the animation instantly for the local player to guarantee zero visual lag.
-
 ## [0.0.11-ALPHA] - 2026-06-04
 
-This release adds a cooperative/competitive passing mechanic and limits dribbling quantities to enhance match realism.
+This release adds a cooperative/competitive passing mechanic, limits dribbling quantities, and introduces programmatic, dynamic-based player animations to enhance match realism.
 
 ### 🚀 Added Features
 
@@ -29,11 +16,18 @@ This release adds a cooperative/competitive passing mechanic and limits dribblin
     *   **Ground Passes**: If no teammate is in sight, performs a soft ground pass in the looking direction.
     *   **Cyan Progress HUD**: Shows a distinct cyan-colored progress bar beneath the crosshair while charging a pass.
     *   **Pass Audio**: Plays a lighter, slightly higher-pitched kick sound on passes for audio feedback.
+*   **Dynamic Kicking Animations**: Adds custom limb animations for player models during kicks/passes:
+    *   **Walking Cycle Alignment**: When kicking straight forward, the mod detects your walking cycle stride (`limbSwing`) and swings the leg that is currently positioned backward.
+    *   **Sideways Kicking Alignment**: If looking/kicking to the right, the character will kick with the left leg (crossing over), and vice-versa, avoiding physically impossible poses.
+    *   **Balance Arm Swings**: Swings the opposite arm forward and the same-side arm backward to mimic realistic athletic balance during a kick.
+    *   **Multiplayer Animation Sync**: Uses server-to-client S2C packet broadcasting (`KICK_ANIM_S2C_PACKET_ID`) so all nearby players can see other player models animate when they kick or pass.
+    *   **Low-Latency Client Prediction**: Runs the animation instantly for the local player to guarantee zero visual lag.
 
 ### 🔧 Fixes & Adjustments
 
 *   **Dribble Limit constraint**: Constrained dribbling attachment to at most 1 football per player at a time. If a player is already dribbling a ball, they cannot attach another ball until they crouch-release or kick the current one.
 *   **Interaction Safety**: Suppresses default right-click interactions (such as block placement or item usage) while charging a pass to prevent gameplay conflicts.
+
 
 ## [0.0.10-ALPHA] - 2026-06-03
 
