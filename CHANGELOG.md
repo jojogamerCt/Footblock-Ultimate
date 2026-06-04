@@ -4,9 +4,26 @@ All notable changes to the **Footblock Ultimate** mod will be documented in this
 
 ---
 
+## [0.0.11-ALPHA] - 2026-06-04
+
+This release adds a cooperative/competitive passing mechanic and limits dribbling quantities to enhance match realism.
+
+### 🚀 Added Features
+
+*   **Charged Passing System**: Hold down **Right-Click (Use Key)** while dribbling to charge up a pass to a teammate.
+    *   **Teammate Homing**: Scans for alive players in a 30-block distance within a 45-degree cone of the kicker's aim. If found, the pass is accurately projected towards their feet with speed proportional to distance and power.
+    *   **Ground Passes**: If no teammate is in sight, performs a soft ground pass in the looking direction.
+    *   **Cyan Progress HUD**: Shows a distinct cyan-colored progress bar beneath the crosshair while charging a pass.
+    *   **Pass Audio**: Plays a lighter, slightly higher-pitched kick sound on passes for audio feedback.
+
+### 🔧 Fixes & Adjustments
+
+*   **Dribble Limit constraint**: Constrained dribbling attachment to at most 1 football per player at a time. If a player is already dribbling a ball, they cannot attach another ball until they crouch-release or kick the current one.
+*   **Interaction Safety**: Suppresses default right-click interactions (such as block placement or item usage) while charging a pass to prevent gameplay conflicts.
+
 ## [0.0.10-ALPHA] - 2026-06-03
 
-This is the initial alpha release of **Footblock Ultimate**, the next-generation sequel to the original Footblock mod. Built on **Minecraft 1.21.1** with the **Architectury API**, supporting both **Fabric** and **NeoForge** loaders.
+This is the initial alpha release of **Footblock Ultimate**, the next-generation sequel to the original Footblock mod.
 
 ### 🚀 Added Features
 

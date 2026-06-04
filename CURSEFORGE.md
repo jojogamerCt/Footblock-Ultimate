@@ -7,8 +7,9 @@
 ## ✨ Key Features
 
 *   **Voxel Soccer Ball**: A programmatically designed 3D blocky sphere football that looks and feels perfectly vanilla. It matches Minecraft’s signature aesthetic while offering smooth rolling and rotation animations.
-*   **Tactile Dribbling System**: Walk into the ball to instantly attach it to your feet! Run, weave, and maneuver around opponents. The ball follows you dynamically on both the server and client with zero lag.
-*   **Charged Power Shots**: Hold down **Left-Click (Attack Key)** while dribbling to charge up your kick! Watch your power increase on a vibrant custom HUD bar, and release to send the ball flying.
+*   **Tactile Dribbling System**: Walk into the ball to instantly attach it to your feet! Run, weave, and maneuver around opponents. The ball follows you dynamically with zero lag. *(Note: You can only dribble a maximum of one football at a time!)*
+*   **Charged Power Shots**: Hold down **Left-Click (Attack Key)** while dribbling to charge up your kick! Watch your power increase on a vibrant gold HUD bar, and release to send the ball flying.
+*   **Tactile Passing System**: Hold down **Right-Click (Use Key)** while dribbling to charge up a pass to a teammate! Visualized by a cyan HUD bar, the ball automatically routes directly towards a teammate's feet within your view, or plays a low ground pass if no player is in sight.
 *   **Realistic Physics & Bouncing**: The football responds to gravity, ground friction, and kinetic force. It bounces off blocks, walls, ceilings, and other players realistically (bouncing coefficient: `0.6`).
 *   **Tactical Stealing**: Is an opponent dribbling the ball? Run up to them to steal it! Integrated anti-oscillation cooldowns (10 ticks) ensure smooth and competitive exchanges.
 *   **Custom Sound Effects**: Immersive, dynamic kick sounds (randomly selected from 3 high-quality custom audio files) that change pitch dynamically according to the force of your kick!
@@ -24,6 +25,8 @@
 4.  **Charged Shot**: Hold down **Left-Click** to charge your kick. The golden HUD bar under your crosshair will fill up. Release to launch the ball! Sprinting while kicking adds extra velocity and vertical lift.
 5.  **Standard Kick**: Left-click (punch) the ball when it is on the ground (unattached) to kick it instantly.
 6.  **Retrieve Ball**: **Right-Click** the ball entity to return it to your inventory as an item.
+7.  **Charged Pass**: Hold down **Right-Click** while dribbling to charge a pass. The cyan HUD bar will fill up. Release to pass directly to the closest teammate in your direction of view (or perform a low ground pass if looking at open space).
+
 
 ---
 

@@ -3,6 +3,8 @@ package net.footblock.footblockultimate.entity;
 import net.footblock.footblockultimate.registry.ModItems;
 import net.footblock.footblockultimate.registry.ModSounds;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.phys.AABB;
+import java.util.List;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
@@ -210,10 +212,28 @@ public class FootballEntity extends Entity {
 
             UUID attachedUuid = this.getAttachedPlayerUUID();
             if (attachedUuid == null) {
-                this.setAttachedPlayer(player);
+                // Check if player already has a ball attached
+                AABB checkArea = player.getBoundingBox().inflate(5.0);
+                List<FootballEntity> attachedBalls = player.level().getEntitiesOfClass(
+                        FootballEntity.class,
+                        checkArea,
+                        b -> player.getUUID().equals(b.getAttachedPlayerUUID())
+                );
+                if (attachedBalls.isEmpty()) {
+                    this.setAttachedPlayer(player);
+                }
             } else if (!attachedUuid.equals(player.getUUID())) {
                 if (this.tickCount - this.lastAttachTick > 10) {
-                    this.setAttachedPlayer(player);
+                    // Check if player already has a ball attached
+                    AABB checkArea = player.getBoundingBox().inflate(5.0);
+                    List<FootballEntity> attachedBalls = player.level().getEntitiesOfClass(
+                            FootballEntity.class,
+                            checkArea,
+                            b -> player.getUUID().equals(b.getAttachedPlayerUUID())
+                    );
+                    if (attachedBalls.isEmpty()) {
+                        this.setAttachedPlayer(player);
+                    }
                 }
             }
         }
@@ -287,5 +307,75 @@ public class FootballEntity extends Entity {
     @Override
     public boolean isPickable() {
         return !this.isRemoved();
+    }
+
+    public void passFromPlayerCharged(Player player, float power) {
+        if (this.level().isClientSide()) {
+            return;
+        }
+        this.setAttachedPlayer(null);
+        this.lastKickTick = this.tickCount;
+
+        Player target = findPassTarget(player);
+        double vx, vy, vz;
+
+        if (target != null) {
+            Vec3 toTarget = target.position().subtract(this.position());
+            double dist = toTarget.length();
+            Vec3 flatDir = new Vec3(toTarget.x, 0, toTarget.z).normalize();
+
+            double horizontalForce = (dist * 0.04 + 0.25) * (0.3f + 0.7f * power);
+            double verticalLift = Math.min(0.2, dist * 0.01) * (0.2f + 0.8f * power);
+
+            vx = flatDir.x * horizontalForce;
+            vy = Math.max(0.05, verticalLift);
+            vz = flatDir.z * horizontalForce;
+        } else {
+            Vec3 lookVec = player.getLookAngle();
+            double horizontalForce = (player.isSprinting() ? 1.0 : 0.6) * power;
+            double verticalLift = 0.05 * power;
+
+            vx = lookVec.x * horizontalForce;
+            vy = Math.max(0.02, lookVec.y * horizontalForce + verticalLift);
+            vz = lookVec.z * horizontalForce;
+        }
+
+        this.setDeltaMovement(vx, vy, vz);
+        this.hasImpulse = true;
+
+        float pitch = 1.2f + (1.0f - power) * 0.4f;
+        this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
+                ModSounds.FOOTBALL_KICK.get(), SoundSource.PLAYERS, 0.8f, pitch);
+    }
+
+    private Player findPassTarget(Player kicker) {
+        Player bestTarget = null;
+        double bestScore = -1.0;
+        Vec3 kickerPos = kicker.position();
+        Vec3 lookVec = kicker.getLookAngle().normalize();
+
+        for (Player target : kicker.level().players()) {
+            if (target == kicker || target.isSpectator() || !target.isAlive()) {
+                continue;
+            }
+
+            Vec3 toTarget = target.position().subtract(kickerPos);
+            double distance = toTarget.length();
+            if (distance > 30.0 || distance < 1.0) {
+                continue;
+            }
+
+            Vec3 toTargetDir = toTarget.normalize();
+            double dot = lookVec.dot(toTargetDir);
+
+            if (dot > 0.707) {
+                double score = dot - (distance * 0.01);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestTarget = target;
+                }
+            }
+        }
+        return bestTarget;
     }
 }

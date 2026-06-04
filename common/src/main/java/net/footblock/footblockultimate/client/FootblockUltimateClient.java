@@ -22,6 +22,7 @@ import java.util.List;
 
 public final class FootblockUltimateClient {
     public static float shootCharge = 0.0f;
+    public static float passCharge = 0.0f;
 
     public static void init() {
         EntityRendererRegistry.register(ModEntities.FOOTBALL, FootballRenderer::new);
@@ -31,28 +32,45 @@ public final class FootblockUltimateClient {
         ClientTickEvent.CLIENT_POST.register(minecraft -> {
             if (minecraft.player == null) {
                 shootCharge = 0.0f;
+                passCharge = 0.0f;
                 return;
             }
 
             FootballEntity ball = getDribbledBall(minecraft.player);
             if (ball != null) {
                 if (minecraft.options.keyAttack.isDown()) {
-                    // Charges 5% per tick -> 20 ticks (1s) to reach 100%
-                    shootCharge = Math.min(1.0f, shootCharge + 0.05f);
+                    if (passCharge == 0.0f) {
+                        // Charges 5% per tick -> 20 ticks (1s) to reach 100%
+                        shootCharge = Math.min(1.0f, shootCharge + 0.05f);
+                    }
                 } else {
                     if (shootCharge > 0.0f) {
                         sendShootPacket(shootCharge);
                         shootCharge = 0.0f;
                     }
                 }
+
+                if (minecraft.options.keyUse.isDown()) {
+                    if (shootCharge == 0.0f) {
+                        passCharge = Math.min(1.0f, passCharge + 0.05f);
+                        // Consume the use key clicks to prevent block placement / item use while charging
+                        while (minecraft.options.keyUse.consumeClick()) {}
+                    }
+                } else {
+                    if (passCharge > 0.0f) {
+                        sendPassPacket(passCharge);
+                        passCharge = 0.0f;
+                    }
+                }
             } else {
                 shootCharge = 0.0f;
+                passCharge = 0.0f;
             }
         });
 
         // Register HUD rendering event to display power bar
         ClientGuiEvent.RENDER_HUD.register((graphics, deltaTracker) -> {
-            if (shootCharge > 0.0f) {
+            if (shootCharge > 0.0f || passCharge > 0.0f) {
                 renderPowerBar(graphics);
             }
         });
@@ -109,6 +127,74 @@ public final class FootblockUltimateClient {
         }
     }
 
+    private static void sendPassPacket(float power) {
+        FootballEntity ball = getDribbledBall(Minecraft.getInstance().player);
+        if (ball != null) {
+            // Client side prediction: detach and pass locally immediately
+            ball.setAttachedPlayer(null);
+
+            Player player = Minecraft.getInstance().player;
+            if (player != null && Minecraft.getInstance().level != null) {
+                // Find target player on client too for prediction!
+                Player target = null;
+                double bestScore = -1.0;
+                Vec3 kickerPos = player.position();
+                Vec3 lookVec = player.getLookAngle().normalize();
+
+                for (Player t : Minecraft.getInstance().level.players()) {
+                    if (t == player || t.isSpectator() || !t.isAlive()) {
+                        continue;
+                    }
+                    Vec3 toTarget = t.position().subtract(kickerPos);
+                    double distance = toTarget.length();
+                    if (distance > 30.0 || distance < 1.0) {
+                        continue;
+                    }
+                    Vec3 toTargetDir = toTarget.normalize();
+                    double dot = lookVec.dot(toTargetDir);
+                    if (dot > 0.707) {
+                        double score = dot - (distance * 0.01);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            target = t;
+                        }
+                    }
+                }
+
+                double vx, vy, vz;
+                if (target != null) {
+                    Vec3 toTarget = target.position().subtract(ball.position());
+                    double dist = toTarget.length();
+                    Vec3 flatDir = new Vec3(toTarget.x, 0, toTarget.z).normalize();
+
+                    double horizontalForce = (dist * 0.04 + 0.25) * (0.3f + 0.7f * power);
+                    double verticalLift = Math.min(0.2, dist * 0.01) * (0.2f + 0.8f * power);
+
+                    vx = flatDir.x * horizontalForce;
+                    vy = Math.max(0.05, verticalLift);
+                    vz = flatDir.z * horizontalForce;
+                } else {
+                    double horizontalForce = (player.isSprinting() ? 1.0 : 0.6) * power;
+                    double verticalLift = 0.05 * power;
+
+                    vx = lookVec.x * horizontalForce;
+                    vy = Math.max(0.02, lookVec.y * horizontalForce + verticalLift);
+                    vz = lookVec.z * horizontalForce;
+                }
+
+                ball.setDeltaMovement(vx, vy, vz);
+
+                // Send packet to server using RegistryFriendlyByteBuf
+                RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(
+                        Unpooled.buffer(),
+                        Minecraft.getInstance().level.registryAccess()
+                );
+                buf.writeFloat(power);
+                NetworkManager.sendToServer(FootblockUltimate.PASS_PACKET_ID, buf);
+            }
+        }
+    }
+
     private static void renderPowerBar(GuiGraphics graphics) {
         int centerX = graphics.guiWidth() / 2;
         int centerY = graphics.guiHeight() / 2;
@@ -128,10 +214,13 @@ public final class FootblockUltimateClient {
         // 2. Draw dark translucent background
         graphics.fill(x1, y1, x2, y2, 0x80000000);
 
-        // 3. Draw filled power progress (vibrant golden yellow color)
-        int fillWidth = (int) (40.0f * shootCharge);
+        // 3. Draw filled power progress (vibrant golden yellow for shoot, vibrant athletic blue for pass)
+        float charge = shootCharge > 0.0f ? shootCharge : passCharge;
+        int color = shootCharge > 0.0f ? 0xFFFFCC00 : 0xFF00CCFF;
+
+        int fillWidth = (int) (40.0f * charge);
         if (fillWidth > 0) {
-            graphics.fill(x1, y1, x1 + fillWidth, y2, 0xFFFFCC00);
+            graphics.fill(x1, y1, x1 + fillWidth, y2, color);
         }
     }
 }
