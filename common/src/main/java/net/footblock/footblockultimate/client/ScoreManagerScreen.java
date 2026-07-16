@@ -64,7 +64,7 @@ public final class ScoreManagerScreen extends Screen {
                 0xFF3EC7D3, () -> false, () -> sendAction(ACTION_ADD, selectedTeam, 1)
         ));
 
-        this.scoreInput = new EditBox(
+        this.scoreInput = new ScoreManagerEditBox(
                 this.font, left + 134, top + 88, 40, 20,
                 Component.translatable("screen.footblockultimate.score_manager.value")
         );

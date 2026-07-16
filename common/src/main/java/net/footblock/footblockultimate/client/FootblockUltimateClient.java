@@ -161,7 +161,7 @@ public final class FootblockUltimateClient {
                 double vz = lookVec.z * horizontalForce;
 
                 ball.setDeltaMovement(vx, vy, vz);
-                ball.applyCurveFromPlayer(player, power, 1.0f, false);
+                ball.applyCurveFromPlayer(player, power, 1.0f);
 
                 // Send packet to server using RegistryFriendlyByteBuf
                 RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(
@@ -252,7 +252,7 @@ public final class FootblockUltimateClient {
                 }
 
                 ball.setDeltaMovement(vx, vy, vz);
-                ball.applyCurveFromPlayer(player, power, 0.35f, true);
+                ball.applyCurveFromPlayer(player, power, 0.35f);
 
                 // Send packet to server using RegistryFriendlyByteBuf
                 RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(

@@ -17,8 +17,6 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -425,7 +423,7 @@ public class FootballEntity extends Entity {
         double vz = lookVec.z * horizontalForce;
 
         this.setDeltaMovement(vx, vy, vz);
-        this.applyCurveFromPlayer(player, power, 1.0f, false);
+        this.applyCurveFromPlayer(player, power, 1.0f);
         this.hasImpulse = true;
 
         float pitch = 1.0f + (1.0f - power) * 0.5f;
@@ -489,7 +487,7 @@ public class FootballEntity extends Entity {
         }
 
         this.setDeltaMovement(vx, vy, vz);
-        this.applyCurveFromPlayer(player, power, 0.35f, true);
+        this.applyCurveFromPlayer(player, power, 0.35f);
         this.hasImpulse = true;
 
         float pitch = 1.2f + (1.0f - power) * 0.4f;
@@ -552,7 +550,7 @@ public class FootballEntity extends Entity {
         }
     }
 
-    public void applyCurveFromPlayer(Player player, float power, float multiplier, boolean passing) {
+    public void applyCurveFromPlayer(Player player, float power, float multiplier) {
         if (this.getVariant() != FootballVariant.WORLD_CUP_2026 || player.isCrouching()) {
             this.setCurveSpin(0.0f);
             return;
@@ -566,24 +564,6 @@ public class FootballEntity extends Entity {
         float curve = Mth.clamp((float) cross * power * multiplier, -0.75f, 0.75f);
         this.setCurveSpin(curve);
 
-        if (!this.level().isClientSide() && player instanceof ServerPlayer serverPlayer) {
-            String directionKey;
-            if (curve > 0.08f) {
-                directionKey = "message.footblockultimate.curve.left";
-            } else if (curve < -0.08f) {
-                directionKey = "message.footblockultimate.curve.right";
-            } else {
-                directionKey = "message.footblockultimate.curve.straight";
-            }
-            serverPlayer.displayClientMessage(
-                    Component.translatable(passing
-                                    ? "message.footblockultimate.pass_telemetry"
-                                    : "message.footblockultimate.shot_telemetry",
-                            Math.round(power * 100.0f),
-                            Component.translatable(directionKey)),
-                    true
-            );
-        }
     }
 
     private void applyCurvePhysics() {
