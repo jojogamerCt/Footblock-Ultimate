@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "footblockultimate:block/score_manager_console"
+    }
+  }
+}

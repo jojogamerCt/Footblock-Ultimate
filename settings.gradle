@@ -1,6 +1,26 @@
 pluginManagement {
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == 'dev.architectury.loom') {
+                useModule("dev.architectury:architectury-loom:${requested.version}")
+            }
+        }
+    }
     repositories {
         maven { url "https://maven.fabricmc.net/" }
+        maven {
+            name = "ArchitecturyPluginReleases"
+            url "https://maven.architectury.dev/"
+            // The published Architectury 3.4.164 Gradle metadata identifies itself as a snapshot.
+            // Prefer the correctly versioned Maven POM so immutable plugin releases resolve reliably.
+            content {
+                includeModule("architectury-plugin", "architectury-plugin.gradle.plugin")
+            }
+            metadataSources {
+                mavenPom()
+                artifact()
+            }
+        }
         maven { url "https://maven.architectury.dev/" }
         maven { url "https://files.minecraftforge.net/maven/" }
         gradlePluginPortal()

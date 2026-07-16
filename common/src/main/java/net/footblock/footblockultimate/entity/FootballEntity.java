@@ -1,8 +1,11 @@
 package net.footblock.footblockultimate.entity;
 
 import net.footblock.footblockultimate.FootblockUltimate;
+import net.footblock.footblockultimate.block.GoalLineBlock;
 import net.footblock.footblockultimate.registry.ModItems;
 import net.footblock.footblockultimate.registry.ModSounds;
+import net.footblock.footblockultimate.match.WorldCupMatchManager;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.AABB;
 import java.util.List;
@@ -13,8 +16,12 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerEntity;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -24,17 +31,26 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
 import java.util.UUID;
 
 public class FootballEntity extends Entity {
+    private static final int GOAL_SENSOR_HEIGHT = 4;
+    private static final double GOAL_SCAN_STEPS_PER_BLOCK = 4.0;
     private static final EntityDataAccessor<Optional<UUID>> ATTACHED_PLAYER_UUID =
             SynchedEntityData.defineId(FootballEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+    private static final EntityDataAccessor<Integer> BALL_VARIANT =
+            SynchedEntityData.defineId(FootballEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Float> CURVE_SPIN =
+            SynchedEntityData.defineId(FootballEntity.class, EntityDataSerializers.FLOAT);
 
     private int lastAttachTick = 0;
     private int lastKickTick = 0;
+    private UUID lastTouchPlayerUUID;
+    private boolean goalHandled;
     private float rollX = 0.0f;
     private float rollY = 0.0f;
     private float rollZ = 0.0f;
@@ -46,12 +62,19 @@ public class FootballEntity extends Entity {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(ATTACHED_PLAYER_UUID, Optional.empty());
+        builder.define(BALL_VARIANT, FootballVariant.CLASSIC.getId());
+        builder.define(CURVE_SPIN, 0.0f);
     }
 
     @Override
     protected void readAdditionalSaveData(CompoundTag compound) {
         if (compound.hasUUID("AttachedPlayer")) {
             this.setAttachedPlayerUUID(compound.getUUID("AttachedPlayer"));
+        }
+        this.setVariant(FootballVariant.byId(compound.getInt("BallVariant")));
+        this.setCurveSpin(compound.getFloat("CurveSpin"));
+        if (compound.hasUUID("LastTouchPlayer")) {
+            this.lastTouchPlayerUUID = compound.getUUID("LastTouchPlayer");
         }
     }
 
@@ -60,6 +83,11 @@ public class FootballEntity extends Entity {
         UUID attached = this.getAttachedPlayerUUID();
         if (attached != null) {
             compound.putUUID("AttachedPlayer", attached);
+        }
+        compound.putInt("BallVariant", this.getVariant().getId());
+        compound.putFloat("CurveSpin", this.getCurveSpin());
+        if (this.lastTouchPlayerUUID != null) {
+            compound.putUUID("LastTouchPlayer", this.lastTouchPlayerUUID);
         }
     }
 
@@ -81,6 +109,54 @@ public class FootballEntity extends Entity {
 
     public void setAttachedPlayer(Player player) {
         this.setAttachedPlayerUUID(player != null ? player.getUUID() : null);
+        if (player != null) {
+            this.lastTouchPlayerUUID = player.getUUID();
+        }
+    }
+
+    public FootballVariant getVariant() {
+        return FootballVariant.byId(this.entityData.get(BALL_VARIANT));
+    }
+
+    public void setVariant(FootballVariant variant) {
+        this.entityData.set(BALL_VARIANT, variant.getId());
+    }
+
+    public float getCurveSpin() {
+        return this.entityData.get(CURVE_SPIN);
+    }
+
+    public void setCurveSpin(float curveSpin) {
+        this.entityData.set(CURVE_SPIN, Mth.clamp(curveSpin, -1.0f, 1.0f));
+    }
+
+    public UUID getLastTouchPlayerUUID() {
+        return this.lastTouchPlayerUUID;
+    }
+
+    public boolean isGoalEligible() {
+        boolean inPlay = this.getAttachedPlayerUUID() != null || this.lastTouchPlayerUUID != null;
+        return !this.goalHandled && inPlay;
+    }
+
+    public void markGoalHandled() {
+        this.goalHandled = true;
+        this.setAttachedPlayer(null);
+        this.setDeltaMovement(Vec3.ZERO);
+    }
+
+    public ItemStack getPickupStack() {
+        return new ItemStack(this.getVariant() == FootballVariant.WORLD_CUP_2026
+                ? ModItems.WORLD_CUP_2026_BALL.get()
+                : ModItems.FOOTBALL.get());
+    }
+
+    public void stopForWhistle() {
+        this.setAttachedPlayer(null);
+        this.setDeltaMovement(Vec3.ZERO);
+        this.setCurveSpin(0.0f);
+        this.lastKickTick = this.tickCount;
+        this.hasImpulse = true;
     }
 
     public float getRollX() {
@@ -97,6 +173,7 @@ public class FootballEntity extends Entity {
 
     @Override
     public void tick() {
+        Vec3 tickStartPosition = this.position();
         super.tick();
 
         UUID attachedUuid = this.getAttachedPlayerUUID();
@@ -117,8 +194,13 @@ public class FootballEntity extends Entity {
                 double targetZ = player.getZ() + Math.cos(rad) * distance;
 
                 this.setPos(targetX, targetY, targetZ);
+                this.tryCheckInsideBlocks();
+                if (this.isRemoved()) {
+                    return;
+                }
                 if (!this.level().isClientSide()) {
                     this.setDeltaMovement(Vec3.ZERO);
+                    this.setCurveSpin(0.0f);
                 }
 
                 // Visual roll based on player movement
@@ -148,6 +230,9 @@ public class FootballEntity extends Entity {
 
             // Perform movement
             this.move(MoverType.SELF, movement);
+            if (this.isRemoved()) {
+                return;
+            }
 
             double actualX = this.getX() - this.xo;
             double actualY = this.getY() - this.yo;
@@ -193,12 +278,68 @@ public class FootballEntity extends Entity {
             if (Math.abs(newY) < 0.001) newY = 0;
 
             this.setDeltaMovement(newX, newY, newZ);
+            this.applyCurvePhysics();
 
             // Visual roll based on physical movement
             double dist = Math.sqrt(actualX * actualX + actualZ * actualZ);
             if (dist > 0.002) {
                 this.rollX += (float) (actualZ * 4.0);
                 this.rollZ -= (float) (actualX * 4.0);
+            }
+            this.rollY += this.getCurveSpin() * 0.08f;
+        }
+
+        if (!this.isRemoved()) {
+            this.checkGoalLineCrossing(tickStartPosition);
+        }
+    }
+
+    private void checkGoalLineCrossing(Vec3 previousPosition) {
+        if (!(this.level() instanceof ServerLevel serverLevel) || !this.isGoalEligible()) {
+            return;
+        }
+
+        Vec3 currentPosition = this.position();
+        double deltaX = currentPosition.x - previousPosition.x;
+        double deltaZ = currentPosition.z - previousPosition.z;
+        double horizontalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+        if (horizontalDistance <= 1.0E-4) {
+            return;
+        }
+
+        int steps = Math.max(1, Mth.ceil(horizontalDistance * GOAL_SCAN_STEPS_PER_BLOCK));
+        for (int step = 0; step <= steps; step++) {
+            Vec3 sample = previousPosition.lerp(currentPosition, step / (double) steps);
+            int sampleX = Mth.floor(sample.x);
+            int sampleY = Mth.floor(sample.y);
+            int sampleZ = Mth.floor(sample.z);
+
+            for (int depth = 0; depth <= GOAL_SENSOR_HEIGHT; depth++) {
+                BlockPos sensorPos = new BlockPos(sampleX, sampleY - depth, sampleZ);
+                BlockState sensorState = serverLevel.getBlockState(sensorPos);
+                if (sensorState.getBlock() instanceof GoalLineBlock goalLine) {
+                    BlockPos frameBase = sensorPos.above();
+                    BlockState frameBaseState = serverLevel.getBlockState(frameBase);
+                    if (!frameBaseState.getCollisionShape(serverLevel, frameBase).isEmpty()) {
+                        break;
+                    }
+                    if (goalLine.isScoringCrossing(sensorState, sensorPos, previousPosition, currentPosition)) {
+                        WorldCupMatchManager.registerGoal(
+                                serverLevel,
+                                sensorPos,
+                                this,
+                                goalLine.getScoringSide()
+                        );
+                        return;
+                    }
+                }
+
+                // Stadium frame blocks mask the sensor column. A crossbar cuts off
+                // shots above it, while posts over the edge detectors cut out those
+                // cells and leave a rectangular scoring aperture between them.
+                if (!sensorState.getCollisionShape(serverLevel, sensorPos).isEmpty()) {
+                    break;
+                }
             }
         }
     }
@@ -243,7 +384,7 @@ public class FootballEntity extends Entity {
     @Override
     public InteractionResult interact(Player player, InteractionHand hand) {
         if (!this.level().isClientSide()) {
-            ItemStack ballStack = new ItemStack(ModItems.FOOTBALL.get());
+            ItemStack ballStack = this.getPickupStack();
             if (!player.getInventory().add(ballStack)) {
                 player.drop(ballStack, false);
             }
@@ -264,6 +405,7 @@ public class FootballEntity extends Entity {
         }
         this.setAttachedPlayer(null);
         this.lastKickTick = this.tickCount;
+        this.lastTouchPlayerUUID = player.getUUID();
 
         Vec3 lookVec = player.getLookAngle();
         double minForce = 0.15;
@@ -283,6 +425,7 @@ public class FootballEntity extends Entity {
         double vz = lookVec.z * horizontalForce;
 
         this.setDeltaMovement(vx, vy, vz);
+        this.applyCurveFromPlayer(player, power, 1.0f, false);
         this.hasImpulse = true;
 
         float pitch = 1.0f + (1.0f - power) * 0.5f;
@@ -319,6 +462,7 @@ public class FootballEntity extends Entity {
         }
         this.setAttachedPlayer(null);
         this.lastKickTick = this.tickCount;
+        this.lastTouchPlayerUUID = player.getUUID();
 
         Player target = findPassTarget(player);
         double vx, vy, vz;
@@ -345,6 +489,7 @@ public class FootballEntity extends Entity {
         }
 
         this.setDeltaMovement(vx, vy, vz);
+        this.applyCurveFromPlayer(player, power, 0.35f, true);
         this.hasImpulse = true;
 
         float pitch = 1.2f + (1.0f - power) * 0.4f;
@@ -363,6 +508,9 @@ public class FootballEntity extends Entity {
 
         for (Player target : kicker.level().players()) {
             if (target == kicker || target.isSpectator() || !target.isAlive()) {
+                continue;
+            }
+            if (kicker.getTeam() != null && target.getTeam() != kicker.getTeam()) {
                 continue;
             }
 
@@ -404,22 +552,77 @@ public class FootballEntity extends Entity {
         }
     }
 
+    public void applyCurveFromPlayer(Player player, float power, float multiplier, boolean passing) {
+        if (this.getVariant() != FootballVariant.WORLD_CUP_2026 || player.isCrouching()) {
+            this.setCurveSpin(0.0f);
+            return;
+        }
+
+        float bodyYawRad = player.yBodyRot * ((float) Math.PI / 180.0f);
+        double bodyX = -Math.sin(bodyYawRad);
+        double bodyZ = Math.cos(bodyYawRad);
+        Vec3 look = player.getLookAngle();
+        double cross = bodyX * look.z - bodyZ * look.x;
+        float curve = Mth.clamp((float) cross * power * multiplier, -0.75f, 0.75f);
+        this.setCurveSpin(curve);
+
+        if (!this.level().isClientSide() && player instanceof ServerPlayer serverPlayer) {
+            String directionKey;
+            if (curve > 0.08f) {
+                directionKey = "message.footblockultimate.curve.left";
+            } else if (curve < -0.08f) {
+                directionKey = "message.footblockultimate.curve.right";
+            } else {
+                directionKey = "message.footblockultimate.curve.straight";
+            }
+            serverPlayer.displayClientMessage(
+                    Component.translatable(passing
+                                    ? "message.footblockultimate.pass_telemetry"
+                                    : "message.footblockultimate.shot_telemetry",
+                            Math.round(power * 100.0f),
+                            Component.translatable(directionKey)),
+                    true
+            );
+        }
+    }
+
+    private void applyCurvePhysics() {
+        float curve = this.getCurveSpin();
+        if (Math.abs(curve) < 0.002f) {
+            return;
+        }
+
+        Vec3 velocity = this.getDeltaMovement();
+        if (!this.onGround() && velocity.horizontalDistanceSqr() > 0.01) {
+            double angle = -curve * 0.018;
+            double cos = Math.cos(angle);
+            double sin = Math.sin(angle);
+            double curvedX = velocity.x * cos - velocity.z * sin;
+            double curvedZ = velocity.x * sin + velocity.z * cos;
+            this.setDeltaMovement(curvedX, velocity.y, curvedZ);
+            if (!this.level().isClientSide()) {
+                this.setCurveSpin(curve * 0.985f);
+            }
+        } else if (!this.level().isClientSide()) {
+            this.setCurveSpin(curve * 0.82f);
+        }
+    }
+
     private void broadcastKickAnimation(Player player, float power, boolean isRightLeg) {
         if (player.level().isClientSide()) {
             return;
         }
 
-        net.minecraft.network.RegistryFriendlyByteBuf buf = new net.minecraft.network.RegistryFriendlyByteBuf(
-                io.netty.buffer.Unpooled.buffer(),
-                player.level().registryAccess()
-        );
-        buf.writeUUID(player.getUUID());
-        buf.writeBoolean(isRightLeg);
-        buf.writeFloat(power);
-
         if (player.level().getServer() != null) {
             for (net.minecraft.server.level.ServerPlayer serverPlayer : player.level().getServer().getPlayerList().getPlayers()) {
                 if (serverPlayer.level() == player.level()) {
+                    net.minecraft.network.RegistryFriendlyByteBuf buf = new net.minecraft.network.RegistryFriendlyByteBuf(
+                            io.netty.buffer.Unpooled.buffer(),
+                            player.level().registryAccess()
+                    );
+                    buf.writeUUID(player.getUUID());
+                    buf.writeBoolean(isRightLeg);
+                    buf.writeFloat(power);
                     dev.architectury.networking.NetworkManager.sendToPlayer(serverPlayer, FootblockUltimate.KICK_ANIM_S2C_PACKET_ID, buf);
                 }
             }

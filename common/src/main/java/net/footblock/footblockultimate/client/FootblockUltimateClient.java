@@ -85,6 +85,22 @@ public final class FootblockUltimateClient {
                 PlayerAnimationTracker.startKick(playerUuid, isRightLeg, power);
             });
         });
+
+        NetworkManager.registerReceiver(NetworkManager.Side.S2C, FootblockUltimate.SCORE_MANAGER_STATE_PACKET_ID, (buf, context) -> {
+            var pos = buf.readBlockPos();
+            int redScore = buf.readInt();
+            int blueScore = buf.readInt();
+            boolean active = buf.readBoolean();
+            boolean openScreen = buf.readBoolean();
+            context.queue(() -> {
+                Minecraft minecraft = Minecraft.getInstance();
+                if (openScreen) {
+                    minecraft.setScreen(new ScoreManagerScreen(pos, redScore, blueScore, active));
+                } else if (minecraft.screen instanceof ScoreManagerScreen screen && screen.isFor(pos)) {
+                    screen.updateState(redScore, blueScore, active);
+                }
+            });
+        });
     }
 
     private static FootballEntity getDribbledBall(Player player) {
@@ -145,6 +161,7 @@ public final class FootblockUltimateClient {
                 double vz = lookVec.z * horizontalForce;
 
                 ball.setDeltaMovement(vx, vy, vz);
+                ball.applyCurveFromPlayer(player, power, 1.0f, false);
 
                 // Send packet to server using RegistryFriendlyByteBuf
                 RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(
@@ -194,6 +211,9 @@ public final class FootblockUltimateClient {
                     if (t == player || t.isSpectator() || !t.isAlive()) {
                         continue;
                     }
+                    if (player.getTeam() != null && t.getTeam() != player.getTeam()) {
+                        continue;
+                    }
                     Vec3 toTarget = t.position().subtract(kickerPos);
                     double distance = toTarget.length();
                     if (distance > 30.0 || distance < 1.0) {
@@ -232,6 +252,7 @@ public final class FootblockUltimateClient {
                 }
 
                 ball.setDeltaMovement(vx, vy, vz);
+                ball.applyCurveFromPlayer(player, power, 0.35f, true);
 
                 // Send packet to server using RegistryFriendlyByteBuf
                 RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(

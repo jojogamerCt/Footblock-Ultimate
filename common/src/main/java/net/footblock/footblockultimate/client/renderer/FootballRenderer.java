@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.footblock.footblockultimate.FootblockUltimate;
 import net.footblock.footblockultimate.client.model.FootballEntityModel;
 import net.footblock.footblockultimate.entity.FootballEntity;
+import net.footblock.footblockultimate.entity.FootballVariant;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -13,8 +14,10 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 
 public class FootballRenderer extends EntityRenderer<FootballEntity> {
-    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
+    private static final ResourceLocation CLASSIC_TEXTURE = ResourceLocation.fromNamespaceAndPath(
             FootblockUltimate.MOD_ID, "textures/entity/football.png");
+    private static final ResourceLocation WORLD_CUP_2026_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+            FootblockUltimate.MOD_ID, "textures/entity/world_cup_2026_ball.png");
 
     private final FootballEntityModel model;
 
@@ -40,6 +43,8 @@ public class FootballRenderer extends EntityRenderer<FootballEntity> {
 
     @Override
     public ResourceLocation getTextureLocation(FootballEntity entity) {
-        return TEXTURE;
+        return entity.getVariant() == FootballVariant.WORLD_CUP_2026
+                ? WORLD_CUP_2026_TEXTURE
+                : CLASSIC_TEXTURE;
     }
 }

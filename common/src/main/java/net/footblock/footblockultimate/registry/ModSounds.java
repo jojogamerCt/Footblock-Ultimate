@@ -14,6 +14,10 @@ public final class ModSounds {
             SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(FootblockUltimate.MOD_ID, "football_kick"))
     );
 
+    public static final RegistrySupplier<SoundEvent> REFEREE_WHISTLE = SOUNDS.register("referee_whistle", () ->
+            SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(FootblockUltimate.MOD_ID, "referee_whistle"))
+    );
+
     public static void init() {
         SOUNDS.register();
     }

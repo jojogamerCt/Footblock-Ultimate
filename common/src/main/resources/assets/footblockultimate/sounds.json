@@ -16,5 +16,15 @@
         "stream": false
       }
     ]
+  },
+  "referee_whistle": {
+    "category": "player",
+    "subtitle": "subtitles.footblockultimate.referee_whistle",
+    "sounds": [
+      {
+        "name": "footblockultimate:referee_whistle",
+        "stream": false
+      }
+    ]
   }
 }

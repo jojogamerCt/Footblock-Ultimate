@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "footblockultimate:block/red_goal_line"
+    },
+    "facing=east": {
+      "model": "footblockultimate:block/red_goal_line",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "footblockultimate:block/red_goal_line",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "footblockultimate:block/red_goal_line",
+      "y": 270
+    }
+  }
+}
